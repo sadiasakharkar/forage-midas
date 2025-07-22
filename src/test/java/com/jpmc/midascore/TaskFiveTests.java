@@ -11,9 +11,12 @@ import org.springframework.test.annotation.DirtiesContext;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @DirtiesContext
-@EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
+@EmbeddedKafka(partitions = 1, brokerProperties = {
+        "listeners=PLAINTEXT://localhost:9092", "port=9092"
+})
 public class TaskFiveTests {
-    static final Logger logger = LoggerFactory.getLogger(TaskFiveTests.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(TaskFiveTests.class);
 
     @Autowired
     private KafkaProducer kafkaProducer;
@@ -27,26 +30,32 @@ public class TaskFiveTests {
     @Autowired
     private BalanceQuerier balanceQuerier;
 
-
     @Test
     void task_five_verifier() throws InterruptedException {
+        // Step 1: Preload test users
         userPopulator.populate();
-        String[] transactionLines = fileLoader.loadStrings("/test_data/rueiwoqp.tyruei");
-        for (String transactionLine : transactionLines) {
-            kafkaProducer.send(transactionLine);
-        }
-        Thread.sleep(2000);
 
-        logger.info("----------------------------------------------------------");
-        logger.info("----------------------------------------------------------");
+        // Step 2: Load and publish test transactions
+        String[] transactionLines = fileLoader.loadStrings("/test_data/rueiwoqp.tyruei");
+        for (String line : transactionLines) {
+            kafkaProducer.send(line);
+        }
+
+        // Step 3: Wait for the transactions to process
+        Thread.sleep(3000);
+
+        // Step 4: Collect and print balances
         logger.info("----------------------------------------------------------");
         logger.info("submit the following output to complete the task (include begin and end output denotations)");
-        StringBuilder output = new StringBuilder("\n").append("---begin output ---").append("\n");
-        for (int i = 0; i < 13; i++) {
-            Balance balance = balanceQuerier.query((long) i);
-            output.append(balance.toString()).append("\n");
+
+        StringBuilder output = new StringBuilder("\n---begin output ---\n");
+        for (long userId = 0; userId <= 12; userId++) {
+            Balance balance = balanceQuerier.query(userId);
+            output.append(balance).append("\n");
         }
         output.append("---end output ---");
+
+        // Final log
         logger.info(output.toString());
     }
 }
